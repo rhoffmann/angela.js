@@ -1,12 +1,12 @@
-describe("some object", function() {
+describe("my module", function() {
 
-  var myModule;
+  var sayHello;
 
   beforeEach(function(){
-    myModule = require('../src/module');
+    sayHello = require('../src/sayHello');
   });
 
-  it("should exist", function() {
-    expect(myModule()).toEqual('myModule');
+  it("should say hello to me", function() {
+    expect(sayHello('Richard')).toEqual('Hello, Richard');
   })
 });

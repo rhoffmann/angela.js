@@ -20,7 +20,10 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'tests/**/*.js'
+      //'node_modules/jquery/dist/jquery.js',
+      //'node_modules/lodash/index.js',
+      'src/**/*.js',
+      'tests/**/*spec.js'
     ],
 
     // list of files to exclude
@@ -30,14 +33,13 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
+      'src/**/*.js': ['browserify'],
       'tests/**/*.js': ['browserify']
     },
 
-
     browserify: {
       debug: true,
-      transform: [ ["babelify", { "optional": ["runtime"] }] ],
-      extensions: ['.jsx']
+      transform: [ ["babelify", { "optional": ["runtime"] }] ]
     },
 
     // test results reporter to use

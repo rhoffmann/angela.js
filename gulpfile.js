@@ -20,19 +20,20 @@ var browserify = require('browserify'),
 var isProduction = !!(argv.production);
 
 var paths = {
-  templates: [
-    './src/**/*.html',
-    '!./src/index.html'
-  ],
-  foundationTemplates: [
-    './src/vendor/foundation/**/*.html'
-  ],
+  //templates: [
+  //  './src/**/*.html',
+  //  '!./src/index.html'
+  //],
+  //foundationTemplates: [
+  //  './src/vendor/foundation/**/*.html'
+  //],
   app: './src',
   scripts: './src/**/*.js',
   scriptsEntry: './src/index.js',
   html: './src/index.html',
   dist: './dist',
   temp: './.tmp',
+  tests: './tests/**/*.js',
   target: isProduction ? './dist' : './.tmp',
   statics: [],
   sass: './src/scss/**/*.scss',
@@ -55,30 +56,32 @@ gulp.task('watch', ['serve'], function () {
     gulp.src(evt.path).pipe(g.connect.reload());
   });
   gulp.watch(paths.sass, ['sass']);
-  gulp.watch(paths.templates, ['templates']);
+  //gulp.watch(paths.templates, ['templates']);
+
+  //gulp.watch([paths.tests, paths.scripts], ['lint', 'test']);
 });
 
 gulp.task('build', function (done) {
   runSequence('clean', ['scripts', 'sass', 'lint'], 'html', done);
 });
 
-gulp.task('templates', function () {
-  var appTemplates = compileTemplates(paths.templates, {
-    moduleName: 'ZVA.epaper.templates',
-    stripPrefix: 'app/'
-  });
-  var foundationTemplates = compileTemplates(paths.foundationTemplates, {
-    moduleName: 'ZVA.epaper.foundationTemplates',
-    stripPrefix: 'vendor/foundation/',
-    prefix: 'components/'
-  });
+//gulp.task('templates', function () {
+//  var appTemplates = compileTemplates(paths.templates, {
+//    moduleName: 'ZVA.epaper.templates',
+//    stripPrefix: 'app/'
+//  });
+//  var foundationTemplates = compileTemplates(paths.foundationTemplates, {
+//    moduleName: 'ZVA.epaper.foundationTemplates',
+//    stripPrefix: 'vendor/foundation/',
+//    prefix: 'components/'
+//  });
+//
+//  return merge(appTemplates, foundationTemplates)
+//    .pipe(gulp.dest(paths.temp));
+//
+//});
 
-  return merge(appTemplates, foundationTemplates)
-    .pipe(gulp.dest(paths.temp));
-
-});
-
-gulp.task('scripts', ['templates'], function () {
+gulp.task('scripts', /*['templates'], */ function () {
   return browserifyShare();
 });
 
