@@ -9,6 +9,8 @@ module.exports = function(config) {
 
     plugins : [
       'karma-browserify',
+      'karma-coverage',
+      //'karma-babel-preprocessor',
       'karma-jasmine',
       'karma-sinon',
       'karma-phantomjs-launcher',
@@ -21,8 +23,6 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      //'node_modules/jquery/dist/jquery.js',
-      //'node_modules/lodash/index.js',
       'src/**/*.js',
       'tests/**/*spec.js'
     ],
@@ -34,7 +34,7 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'src/**/*.js': ['browserify'],
+      'src/**/*.js': ['browserify', 'coverage'],
       'tests/**/*.js': ['browserify']
     },
 

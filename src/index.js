@@ -1,14 +1,11 @@
 import Scope from './scope';
 
+//var Immutable = require('immutable');
 let sayHello = require('./sayHello');
 
-function init() {
+export default function init() {
   var scope = new Scope();
-  scope.name = 'Richard';
-  let text = sayHello(scope.name);
-  console.log(text);
+
+  //scope.list = new Immutable.List.of(1, 2);
+
 }
-
-init();
-
-module.exports = init;

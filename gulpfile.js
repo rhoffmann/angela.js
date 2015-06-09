@@ -1,13 +1,12 @@
 'use strict';
 
-// TODO: modify
-
 var g        = require('gulp-load-plugins')();
 var argv     = require('yargs').argv;
 var gulp     = require('gulp');
 
 var browserify = require('browserify'),
     watchify = require('watchify'),
+    babelify = require('babelify'),
     runSequence = require('run-sequence'),
     source = require('vinyl-source-stream'),
     buffer = require('vinyl-buffer'),
@@ -110,6 +109,7 @@ gulp.task('statics', function () {
 gulp.task('clean', function (done) {
   del([paths.target, paths.temp], done);
 });
+
 gulp.task('sass', function () {
   return gulp.src(paths.sassEntry)
     .pipe(g.if(!isProduction, g.sourcemaps.init()))
@@ -141,7 +141,12 @@ function browserifyShare() {
     cache: {},
     packageCache: {},
     debug: !isProduction
-  });
+  }).transform(
+    babelify.configure({
+      optional: ["runtime"],
+      blacklist: ["regenerator"]
+    })
+  );
 
   var w;
   if (!isProduction) {
