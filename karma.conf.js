@@ -10,13 +10,14 @@ module.exports = function(config) {
     plugins : [
       'karma-browserify',
       'karma-jasmine',
+      'karma-sinon',
       'karma-phantomjs-launcher',
       'karma-spec-reporter'
     ],
 
     // frameworks to use
     // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
-    frameworks: ['browserify', 'jasmine'],
+    frameworks: ['browserify', 'jasmine', 'sinon'],
 
     // list of files / patterns to load in the browser
     files: [
