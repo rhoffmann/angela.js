@@ -11,10 +11,11 @@ export default class Scope {
     this.$$lastDirtyWatch = null;
   }
 
-  $watch(watchFn, listenerFn) {
+  $watch(watchFn, listenerFn, valueEq) {
     let watcher = {
       watchFn: watchFn,
       listenerFn: listenerFn || function() {},
+      valueEq: !!valueEq,
       last: initWatchVal
     };
     this.$$watchers.push(watcher);
@@ -34,6 +35,10 @@ export default class Scope {
     } while (dirty);
   }
 
+  $eval(expr, locals) {
+    return expr(this, locals);
+  }
+
   $$digestOnce() {
     let newValue, oldValue, dirty;
 
@@ -41,9 +46,9 @@ export default class Scope {
       newValue = watcher.watchFn(this);
       oldValue = watcher.last;
 
-      if (newValue !== oldValue) {
+      if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
         this.$$lastDirtyWatch = watcher;
-        watcher.last = newValue;
+        watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
         watcher.listenerFn(newValue,
           (oldValue === initWatchVal ? newValue : oldValue),
           this);
@@ -54,5 +59,15 @@ export default class Scope {
     });
 
     return dirty;
+  }
+
+  $$areEqual(newValue, oldValue, valueEq) {
+    if (valueEq) {
+      return _.isEqual(newValue, oldValue);
+    } else {
+      return newValue === oldValue ||
+        (typeof newValue === 'number' && typeof oldValue === 'number' &&
+         isNaN(newValue) && isNaN(oldValue));
+    }
   }
 }

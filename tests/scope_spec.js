@@ -191,5 +191,56 @@ describe('Scope', function() {
       scope.$digest();
       expect(scope.counter).toBe(1);
     });
+
+    it('compares based on value if enabled', function() {
+      scope.aValue = [1, 2, 3];
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => { return scope.aValue; },
+        (newValue, oldValue, scope) => {
+          scope.counter++;
+        },
+        true
+      );
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+
+      scope.aValue.push(4);
+      scope.$digest();
+      expect(scope.counter).toBe(2);
+    });
+
+    it('correcty handles NaNs', function(){
+      scope.number = 0/0;
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => { return scope.number; },
+        (newValue, oldValue, scope) => {
+          scope.counter++;
+        }
+      );
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+    });
+
+    it('executes eval`d function and returns result', function() {
+      scope.aValue = 42;
+      var result = scope.$eval( (scope) => scope.aValue );
+      expect(result).toBe(42);
+    });
+
+    it('passes the second $eval argument through', function() {
+      scope.aValue = 42;
+      var result = scope.$eval( (scope, arg) => { return scope.aValue + arg }, 2 );
+      expect(result).toBe(44);
+    });
+
   });
 });
