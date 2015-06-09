@@ -39,6 +39,14 @@ export default class Scope {
     return expr(this, locals);
   }
 
+  $apply(expr) {
+    try {
+      return this.$eval(expr);
+    } finally {
+      this.$digest();
+    }
+  }
+
   $$digestOnce() {
     let newValue, oldValue, dirty;
 
