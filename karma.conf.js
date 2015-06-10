@@ -23,7 +23,7 @@ module.exports = function(config) {
 
     // list of files / patterns to load in the browser
     files: [
-      'src/**/*.js',
+      //'src/**/*.js',
       'tests/**/*spec.js'
     ],
 
@@ -34,13 +34,18 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-      'src/**/*.js': ['browserify', 'coverage'],
+      //'src/**/*.js': ['browserify', 'coverage'],
       'tests/**/*.js': ['browserify']
     },
 
     browserify: {
       debug: true,
-      transform: [ ["babelify", { "optional": ["runtime"] }] ]
+      transform: [ ["babelify", { "optional": ["runtime"] }] ],
+      configure: function(bundle) {
+        bundle.on('prebundle', function() {
+          console.log('prebundle');
+        });
+      }
     },
 
     // test results reporter to use
@@ -59,7 +64,7 @@ module.exports = function(config) {
     logLevel: config.LOG_INFO,
 
     // enable / disable watching file and executing tests whenever any file changes
-    autoWatch: false,
+    autoWatch: true,
 
     // start these browsers
     // available browser launchers: https://npmjs.org/browse/keyword/karma-launcher
