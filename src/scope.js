@@ -13,11 +13,48 @@ export default class Scope {
     this.$$applyAsyncQueue = [];
     this.$$applyAsyncId = null;
     this.$$postDigestQueue = [];
+    this.$root = this;
+    this.$$children = [];
     this.$$phase = null;
   }
 
-  $new() {
-    return Object.create(this); // create new object and set prototype to this
+  $new(isolated, parent) {
+
+    var child;
+    parent = parent || this;
+
+    if (isolated) {
+      // we want to call the constructor function for isolated scopes and not only set the prototype!
+      child = new Scope();
+      child = Object.assign(child, {
+        $root: parent.$root,
+        $$asyncQueue : parent.$$asyncQueue,
+        $$postDigestQueue : parent.$$postDigestQueue,
+        $$applyAsyncQueue : parent.$$applyAsyncQueue
+      });
+    } else {
+      child = Object.create(this);
+    }
+
+    child = Object.assign(child, {
+      $$watchers: [],
+      $$children: [],
+      $parent : parent
+    });
+
+    parent.$$children.push(child);
+    return child;
+  }
+
+  $destroy() {
+    if (this === this.$root) {
+      return;
+    }
+    var siblings = this.$parent.$$children;
+    var indexOfThis = siblings.indexOf(this);
+    if (indexOfThis >= 0) {
+      siblings.splice(indexOfThis, 1);
+    }
   }
 
   $watch(watchFn, listenerFn, valueEq) {
@@ -29,13 +66,13 @@ export default class Scope {
     };
 
     this.$$watchers.unshift(watcher);
-    this.$$lastDirtyWatch = null;
+    this.$root.$$lastDirtyWatch = null;
 
     return () => {
       let index = this.$$watchers.indexOf(watcher);
       if (index >= 0) {
         this.$$watchers.splice(index, 1);
-        this.$$lastDirtyWatch = null;
+        this.$root.$$lastDirtyWatch = null;
       }
     }
   }
@@ -90,11 +127,11 @@ export default class Scope {
   $digest() {
     let ttl = 10;
     let dirty;
-    this.$$lastDirtyWatch = null;
+    this.$root.$$lastDirtyWatch = null;
     this.$beginPhase('$digest');
 
-    if (this.$$applyAsyncId) {
-      clearTimeout(this.$$applyAsyncId);
+    if (this.$root.$$applyAsyncId) {
+      clearTimeout(this.$root.$$applyAsyncId);
       this.$$flushApplyAsync();
     }
 
@@ -131,7 +168,7 @@ export default class Scope {
       return this.$eval(expr);
     } finally {
       this.$clearPhase();
-      this.$digest();
+      this.$root.$digest();
     }
   }
 
@@ -141,8 +178,8 @@ export default class Scope {
       () => { this.$eval(expr); }
     );
 
-    if (this.$$applyAsyncId === null) {
-      this.$$applyAsyncId = setTimeout(() => {
+    if (this.$root.$$applyAsyncId === null) {
+      this.$root.$$applyAsyncId = setTimeout(() => {
         this.$apply( _.bind(this.$$flushApplyAsync, this) );
       }, 0);
     }
@@ -157,7 +194,7 @@ export default class Scope {
     if (!this.$$phase && !this.$$asyncQueue.length) {
       setTimeout(() => {
         if(this.$$asyncQueue.length) {
-          this.$digest();
+          this.$root.$digest();
         }
       }, 0);
     }
@@ -180,28 +217,35 @@ export default class Scope {
   }
 
   $$digestOnce() {
-    let newValue, oldValue, dirty;
+    let dirty;
+    var continueLoop = true;
 
-    _.forEachRight(this.$$watchers, (watcher) => {
-      try {
-        if (watcher) {
-          newValue = watcher.watchFn(this);
-          oldValue = watcher.last;
+    this.$$everyScope((scope) => {
+      let newValue, oldValue;
 
-          if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
-            this.$$lastDirtyWatch = watcher;
-            watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
-            watcher.listenerFn(newValue,
-              (oldValue === initWatchVal ? newValue : oldValue),
-              this);
-            dirty = true;
-          } else if (this.$$lastDirtyWatch === watcher) {
-            return false;
+      _.forEachRight(scope.$$watchers, (watcher) => {
+        try {
+          if (watcher) {
+            newValue = watcher.watchFn(scope);
+            oldValue = watcher.last;
+
+            if (!scope.$$areEqual(newValue, oldValue, watcher.valueEq)) {
+              this.$root.$$lastDirtyWatch = watcher;
+              watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
+              watcher.listenerFn(newValue,
+                (oldValue === initWatchVal ? newValue : oldValue),
+                scope);
+              dirty = true;
+            } else if (this.$root.$$lastDirtyWatch === watcher) {
+              continueLoop = false;
+              return false;
+            }
           }
+        } catch (e) {
+          console.error(e);
         }
-      } catch (e) {
-        console.error(e);
-      }
+      });
+      return continueLoop;
     });
 
     return dirty;
@@ -225,10 +269,20 @@ export default class Scope {
         console.error(e);
       }
     }
-    this.$$applyAsyncId = null;
+    this.$root.$$applyAsyncId = null;
   }
 
   $$postDigest(fn) {
     this.$$postDigestQueue.push(fn);
+  }
+
+  $$everyScope(fn) {
+    if (fn(this)) {
+      return this.$$children.every((child) => {
+        return child.$$everyScope(fn);
+      });
+    } else {
+      return false;
+    }
   }
 }
