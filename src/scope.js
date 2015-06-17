@@ -23,8 +23,17 @@ export default class Scope {
       valueEq: !!valueEq,
       last: initWatchVal
     };
-    this.$$watchers.push(watcher);
+
+    this.$$watchers.unshift(watcher);
     this.$$lastDirtyWatch = null;
+
+    return () => {
+      let index = this.$$watchers.indexOf(watcher);
+      if (index >= 0) {
+        this.$$watchers.splice(index, 1);
+        this.$$lastDirtyWatch = null;
+      }
+    }
   }
 
   $digest() {
@@ -122,21 +131,22 @@ export default class Scope {
   $$digestOnce() {
     let newValue, oldValue, dirty;
 
-    _.forEach(this.$$watchers, (watcher) => {
+    _.forEachRight(this.$$watchers, (watcher) => {
       try {
+        if (watcher) {
+          newValue = watcher.watchFn(this);
+          oldValue = watcher.last;
 
-        newValue = watcher.watchFn(this);
-        oldValue = watcher.last;
-
-        if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
-          this.$$lastDirtyWatch = watcher;
-          watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
-          watcher.listenerFn(newValue,
-            (oldValue === initWatchVal ? newValue : oldValue),
-            this);
-          dirty = true;
-        } else if (this.$$lastDirtyWatch === watcher) {
-          return false;
+          if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
+            this.$$lastDirtyWatch = watcher;
+            watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
+            watcher.listenerFn(newValue,
+              (oldValue === initWatchVal ? newValue : oldValue),
+              this);
+            dirty = true;
+          } else if (this.$$lastDirtyWatch === watcher) {
+            return false;
+          }
         }
       } catch (e) {
         console.error(e);
