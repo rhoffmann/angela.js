@@ -36,6 +36,53 @@ export default class Scope {
     }
   }
 
+  $watchGroup(watchFns, listenerFn) {
+
+    let newValues = new Array(watchFns.length);
+    let oldValues = new Array(watchFns.length);
+    let changeReactionScheduled = false;
+    let firstRun = true;
+
+    if (watchFns.length === 0) {
+      var shouldCall = true;
+      this.$evalAsync(() => {
+        if (shouldCall) {
+          listenerFn(newValues, newValues, this);
+        }
+      });
+      return () => {
+        shouldCall = false;
+      };
+    }
+
+    function watchGroupListener() {
+      if (firstRun) {
+        firstRun = false;
+        listenerFn(newValues, newValues, self);
+      } else {
+        listenerFn(newValues, oldValues, self);
+      }
+      changeReactionScheduled = false;
+    }
+
+    var destroyFunctions =_.map(watchFns, (watchFn, i) => {
+      return this.$watch(watchFn, (newValue, oldValue) => {
+        newValues[i] = newValue;
+        oldValues[i] = oldValue;
+        if(!changeReactionScheduled) {
+          changeReactionScheduled = true;
+          this.$evalAsync(watchGroupListener);
+        }
+      });
+    });
+
+    return () => {
+      _.forEach(destroyFunctions, (destroyFn) => {
+        destroyFn();
+      });
+    };
+  }
+
   $digest() {
     let ttl = 10;
     let dirty;
