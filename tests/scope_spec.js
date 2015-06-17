@@ -471,5 +471,84 @@ describe('Scope', function() {
       scope.$digest();
       expect(scope.watchedValue).toBe('changed');
     });
+
+    it('catches exceptions in watch functions and continues', function() {
+      scope.aValue = 'abc';
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => { throw 'error'; },
+        (newValue, oldValue, scope) => {}
+      );
+
+      scope.$watch(
+        (scope) => { return scope.aValue; },
+        (newValue, oldValue, scope) => { scope.counter++; }
+      );
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+    });
+
+    it('catches exceptions in listener functions and continues', function() {
+      scope.aValue = 'abc';
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => { return scope.aValue },
+        (newValue, oldValue, scope) => {
+          throw 'error';
+        }
+      );
+
+      scope.$watch(
+        (scope) => { return scope.aValue; },
+        (newValue, oldValue, scope) => { scope.counter++; }
+      );
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+    });
+
+
+    it('catches exceptions in $evalAsync', function(done) {
+      scope.aValue = 'abc';
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => { return scope.aValue },
+        (newValue, oldValue, scope) => {
+          scope.counter++;
+        }
+      );
+
+      scope.$evalAsync(() => { throw 'error'; });
+
+      setTimeout(() => {
+        expect(scope.counter).toBe(1);
+        done();
+      }, 50);
+
+    });
+
+    it('catches exceptions in $applyAsync', function(done) {
+      scope.$applyAsync((scope) => { throw 'error'; });
+      scope.$applyAsync((scope) => { throw 'error'; });
+      scope.$applyAsync((scope) => { scope.applied = true });
+
+      setTimeout(() => {
+        expect(scope.applied).toBe(true);
+        done();
+      }, 50);
+    });
+
+    it('catches exceptions in $$postDigest', function() {
+      var didRun = false;
+
+      scope.$$postDigest(() => { throw 'error'; });
+      scope.$$postDigest(() => { didRun = true; });
+      scope.$digest();
+      expect(didRun).toBe(true);
+    });
   });
 });

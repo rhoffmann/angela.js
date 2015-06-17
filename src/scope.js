@@ -40,8 +40,12 @@ export default class Scope {
 
     do {
       while(this.$$asyncQueue.length) {
-        let asyncTask = this.$$asyncQueue.shift();
-        asyncTask.scope.$eval(asyncTask.expression);
+        try {
+          let asyncTask = this.$$asyncQueue.shift();
+          asyncTask.scope.$eval(asyncTask.expression);
+        } catch(e) {
+          console.error(e);
+        }
       }
       dirty = this.$$digestOnce();
       if ((dirty || this.$$asyncQueue.length) && !(ttl--)) {
@@ -53,7 +57,11 @@ export default class Scope {
     this.$clearPhase();
 
     while(this.$$postDigestQueue.length) {
-      this.$$postDigestQueue.shift()();
+      try {
+        this.$$postDigestQueue.shift()();
+      } catch(e) {
+        console.error(e);
+      }
     }
   }
 
@@ -115,18 +123,23 @@ export default class Scope {
     let newValue, oldValue, dirty;
 
     _.forEach(this.$$watchers, (watcher) => {
-      newValue = watcher.watchFn(this);
-      oldValue = watcher.last;
+      try {
 
-      if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
-        this.$$lastDirtyWatch = watcher;
-        watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
-        watcher.listenerFn(newValue,
-          (oldValue === initWatchVal ? newValue : oldValue),
-          this);
-        dirty = true;
-      } else if (this.$$lastDirtyWatch === watcher) {
-        return false;
+        newValue = watcher.watchFn(this);
+        oldValue = watcher.last;
+
+        if (!this.$$areEqual(newValue, oldValue, watcher.valueEq)) {
+          this.$$lastDirtyWatch = watcher;
+          watcher.last = (watcher.valueEq ? _.cloneDeep(newValue) : newValue);
+          watcher.listenerFn(newValue,
+            (oldValue === initWatchVal ? newValue : oldValue),
+            this);
+          dirty = true;
+        } else if (this.$$lastDirtyWatch === watcher) {
+          return false;
+        }
+      } catch (e) {
+        console.error(e);
       }
     });
 
@@ -145,7 +158,11 @@ export default class Scope {
 
   $$flushApplyAsync() {
     while(this.$$applyAsyncQueue.length) {
-      this.$$applyAsyncQueue.shift()();
+      try {
+        this.$$applyAsyncQueue.shift()();
+      } catch (e) {
+        console.error(e);
+      }
     }
     this.$$applyAsyncId = null;
   }
