@@ -10,6 +10,10 @@ export default class Scope {
     this.$$watchers = [];
     this.$$lastDirtyWatch = null;
     this.$$asyncQueue = [];
+    this.$$applyAsyncQueue = [];
+    this.$$applyAsyncId = null;
+    this.$$postDigestQueue = [];
+    this.$$phase = null;
   }
 
   $watch(watchFn, listenerFn, valueEq) {
@@ -27,6 +31,12 @@ export default class Scope {
     let ttl = 10;
     let dirty;
     this.$$lastDirtyWatch = null;
+    this.$beginPhase('$digest');
+
+    if (this.$$applyAsyncId) {
+      clearTimeout(this.$$applyAsyncId);
+      this.$$flushApplyAsync();
+    }
 
     do {
       while(this.$$asyncQueue.length) {
@@ -34,17 +44,39 @@ export default class Scope {
         asyncTask.scope.$eval(asyncTask.expression);
       }
       dirty = this.$$digestOnce();
-      if (dirty && !(ttl--)) {
-        throw "10 digest iterations reached";
+      if ((dirty || this.$$asyncQueue.length) && !(ttl--)) {
+        this.$clearPhase();
+        throw '10 digest iterations reached';
       }
-    } while (dirty);
+    } while (dirty || this.$$asyncQueue.length);
+
+    this.$clearPhase();
+
+    while(this.$$postDigestQueue.length) {
+      this.$$postDigestQueue.shift()();
+    }
   }
 
   $apply(expr) {
     try {
+      this.$beginPhase('$apply');
       return this.$eval(expr);
     } finally {
+      this.$clearPhase();
       this.$digest();
+    }
+  }
+
+  $applyAsync(expr) {
+
+    this.$$applyAsyncQueue.push(
+      () => { this.$eval(expr); }
+    );
+
+    if (this.$$applyAsyncId === null) {
+      this.$$applyAsyncId = setTimeout(() => {
+        this.$apply( _.bind(this.$$flushApplyAsync, this) );
+      }, 0);
     }
   }
 
@@ -53,10 +85,30 @@ export default class Scope {
   }
 
   $evalAsync(expr) {
+
+    if (!this.$$phase && !this.$$asyncQueue.length) {
+      setTimeout(() => {
+        if(this.$$asyncQueue.length) {
+          this.$digest();
+        }
+      }, 0);
+    }
+
     this.$$asyncQueue.push({
       scope: this,
       expression: expr
     });
+  }
+
+  $beginPhase(phase) {
+    if (this.$$phase) {
+      throw this.$$phase + ' already in progress';
+    }
+    this.$$phase = phase;
+  }
+
+  $clearPhase() {
+    this.$$phase = null;
   }
 
   $$digestOnce() {
@@ -89,5 +141,16 @@ export default class Scope {
         (typeof newValue === 'number' && typeof oldValue === 'number' &&
          isNaN(newValue) && isNaN(oldValue));
     }
+  }
+
+  $$flushApplyAsync() {
+    while(this.$$applyAsyncQueue.length) {
+      this.$$applyAsyncQueue.shift()();
+    }
+    this.$$applyAsyncId = null;
+  }
+
+  $$postDigest(fn) {
+    this.$$postDigestQueue.push(fn);
   }
 }

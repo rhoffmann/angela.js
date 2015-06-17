@@ -158,8 +158,7 @@ describe('Scope', function() {
             watchExecutions++;
             return scope.array[i];
           },
-          (newValue, oldValue, scope) => {
-          }
+          (newValue, oldValue, scope) => {}
         );
       });
 
@@ -282,6 +281,195 @@ describe('Scope', function() {
       scope.$digest();
       expect(scope.asyncEvaluated).toBe(true);
       expect(scope.asyncEvaluatedImmediately).toBe(false);
+    });
+
+    it('eventually halts $evalAsyncs added by watches', function() {
+      scope.aValue = [1, 2, 3];
+      scope.$watch(
+        (scope) => {
+          scope.$evalAsync( (scope) => {} );
+          return scope.aValue;
+        },
+        (newValue, oldValue, scope) => {}
+      );
+
+      expect( () => { scope.$digest(); }).toThrow();
+    });
+
+    it('has a $$phase field with the current digest phase as value', function() {
+      scope.aValue = [1,2,3];
+      scope.phaseInWatchFunction = undefined;
+      scope.phaseInListenerFunction = undefined;
+      scope.phaseInApplyFunction = undefined;
+
+      scope.$watch(
+        (scope) => {
+          scope.phaseInWatchFunction = scope.$$phase;
+          return scope.aValue;
+        },
+        (newValue, oldValue, scope) => {
+          scope.phaseInListenerFunction = scope.$$phase;
+        }
+      );
+
+      scope.$apply((scope) => {
+        scope.phaseInApplyFunction = scope.$$phase;
+      });
+
+      expect(scope.phaseInWatchFunction).toBe('$digest');
+      expect(scope.phaseInListenerFunction).toBe('$digest');
+      expect(scope.phaseInApplyFunction).toBe('$apply');
+    });
+
+    it('schedules a digest in $evalAsync', function (done) {
+      scope.aValue = "abc";
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => { return scope.aValue; },
+        (newValue, oldValue, scope) => { scope.counter++; }
+      );
+
+      scope.$evalAsync((scope) => {});
+      expect(scope.counter).toBe(0);
+
+      setTimeout(() => {
+        expect(scope.counter).toBe(1);
+        done();
+      }, 50);
+    });
+
+    it('allows async $apply with $applyAsync', function(done) {
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => scope.aValue,
+        (newValue, oldValue, scope) => { scope.counter++; }
+      );
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+
+      scope.$applyAsync(
+        (scope) => { scope.aValue = 'abc'; }
+      );
+
+      expect(scope.counter).toBe(1);
+
+      setTimeout(() => {
+        expect(scope.counter).toBe(2);
+        done();
+      }, 50);
+    });
+
+    it('never executes $applyAsnyc`ed funciton in the same cycle', function(done) {
+      scope.aValue = [1, 2, 3];
+      scope.asyncApplied = false;
+
+      scope.$watch(
+        (scope) => scope.aValue,
+        (newValue, oldValue, scope) => {
+          scope.$applyAsync( (scope) => {
+              scope.asyncApplied = true;
+          });
+        }
+      );
+
+      scope.$digest();
+      expect(scope.asyncApplied).toBe(false);
+
+      setTimeout(() => {
+        expect(scope.asyncApplied).toBe(true);
+        done();
+      }, 50);
+    });
+
+    it('coalesces many calls to $applyAsync', function(done) {
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => {
+          scope.counter++;
+          return scope.aValue;
+        },
+        (oldValue, newValue, scope) => {}
+      );
+
+      scope.$applyAsync((scope) => {
+        scope.aValue = 'abc';
+      });
+
+      scope.$applyAsync((scope) => {
+        scope.aValue = 'def';
+      });
+
+      setTimeout(() => {
+        expect(scope.counter).toBe(2);
+        done();
+      }, 50);
+    });
+
+    it('cancels and flushes $applyAsync if digested first', function(done) {
+      scope.counter = 0;
+
+      scope.$watch(
+        (scope) => {
+          scope.counter++;
+          return scope.aValue;
+        },
+        (oldValue, newValue, scope) => {}
+      );
+
+      scope.$applyAsync((scope) => {
+        scope.aValue = 'abc';
+      });
+
+      scope.$applyAsync((scope) => {
+        scope.aValue = 'def';
+      });
+
+      scope.$digest();
+      expect(scope.counter).toBe(2);
+      expect(scope.aValue).toEqual('def');
+
+      setTimeout(() => {
+        expect(scope.counter).toBe(2);
+        done();
+      }, 50);
+    });
+
+    it('runs a $$postDigest function after each digest', function() {
+      scope.counter = 0;
+      scope.$$postDigest(() => { scope.counter++; });
+
+      expect(scope.counter).toBe(0);
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+
+      scope.$digest();
+      expect(scope.counter).toBe(1);
+    });
+
+    it('does not include $$postDigest in the digest', function() {
+      scope.aValue = 'original';
+
+      scope.$$postDigest(
+        () => { scope.aValue = 'changed'; }
+      );
+
+      scope.$watch(
+        (scope) => scope.aValue,
+        (newValue, oldValue, scope) => {
+          scope.watchedValue = newValue;
+        }
+      );
+
+      scope.$digest();
+      expect(scope.watchedValue).toBe('original');
+
+      scope.$digest();
+      expect(scope.watchedValue).toBe('changed');
     });
   });
 });
