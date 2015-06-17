@@ -16,6 +16,10 @@ export default class Scope {
     this.$$phase = null;
   }
 
+  $new() {
+    return Object.create(this); // create new object and set prototype to this
+  }
+
   $watch(watchFn, listenerFn, valueEq) {
     let watcher = {
       watchFn: watchFn,
